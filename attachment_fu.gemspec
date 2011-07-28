@@ -3,7 +3,7 @@ $:.unshift(lib) unless $:.include?(lib)
 
 Gem::Specification.new do |s|
   s.name         = 'attachment_fu'
-  s.version      = '0.0.7'
+  s.version      = '0.0.8'
   s.platform     = Gem::Platform::RUBY
   s.authors      = ['Jon Moses']
   s.email        = ['jon@burningbush.us']
