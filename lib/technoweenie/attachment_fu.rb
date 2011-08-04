@@ -146,7 +146,7 @@ module Technoweenie # :nodoc:
           begin
             required = require("#{attachment_options[:processor].to_s.underscore}_processor") rescue 'error'
             if required == 'error'
-              require("technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor") rescue
+              require "technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor"
             end
             processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
             include processor_mod unless included_modules.include?(processor_mod)
