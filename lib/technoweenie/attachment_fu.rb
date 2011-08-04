@@ -143,11 +143,8 @@ module Technoweenie # :nodoc:
             retry
           end
         else
-          required = (require("#{attachment_options[:processor].to_s.underscore}_processor") rescue 'error')
           begin
-            if required == 'error'
-              require "technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor"
-            end
+            require "#{attachment_options[:processor].to_s.underscore}_processor"
             processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
             include processor_mod unless included_modules.include?(processor_mod)
           rescue Object, Exception
