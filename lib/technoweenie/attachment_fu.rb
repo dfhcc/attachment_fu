@@ -144,7 +144,7 @@ module Technoweenie # :nodoc:
           end
         else
           begin
-            required = require("#{attachment_options[:processor].to_s.underscore}_processor") rescue 'error'
+            required = (require("#{attachment_options[:processor].to_s.underscore}_processor") rescue 'error')
             if required == 'error'
               require "technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor"
             end
