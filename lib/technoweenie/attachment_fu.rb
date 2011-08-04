@@ -143,12 +143,8 @@ module Technoweenie # :nodoc:
             retry
           end
         else
+          required = (require("#{attachment_options[:processor].to_s.underscore}_processor") rescue 'error')
           begin
-            begin
-              required = require("#{attachment_options[:processor].to_s.underscore}_processor")
-            rescue
-              required = 'error'
-            end
             if required == 'error'
               require "technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor"
             end
