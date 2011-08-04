@@ -131,7 +131,8 @@ module Technoweenie # :nodoc:
           begin
             if processors.any?
               attachment_options[:processor] = processors.first
-              require "#{attachment_options[:processor].to_s.underscore}_processor"
+              require "#{attachment_options[:processor].to_s.underscore}_processor" rescue
+              require("technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor") rescue
               processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
               include processor_mod unless included_modules.include?(processor_mod)
             end
@@ -144,6 +145,7 @@ module Technoweenie # :nodoc:
         else
           begin
             require("#{attachment_options[:processor].to_s.underscore}_processor") rescue
+            require("technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor") rescue
             processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
             include processor_mod unless included_modules.include?(processor_mod)
           rescue Object, Exception
