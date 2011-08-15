@@ -3,7 +3,7 @@ $:.unshift(lib) unless $:.include?(lib)
 
 Gem::Specification.new do |s|
   s.name         = 'attachment_fu'
-  s.version      = '0.1.7'
+  s.version      = '0.1.8'
   s.platform     = Gem::Platform::RUBY
   s.authors      = ['Jon Moses']
   s.email        = ['jon@burningbush.us']
@@ -13,5 +13,5 @@ Gem::Specification.new do |s|
   
   s.files        = Dir.glob("{lib,rails,vendor}/**/*") + %w( CHANGELOG LICENSE README amazon_s3.yml.tpl rackspace_cloudfiles.yml.tpl )
   s.require_path = 'lib'
-  end
+end
 
