@@ -1,6 +1,8 @@
+#!/usr/bin/env rake
+
 require 'rake'
 require 'rake/testtask'
-# require 'rdoc/task'
+require "bundler/gem_tasks"
 
 desc 'Default: run unit tests.'
 task :default => :test
