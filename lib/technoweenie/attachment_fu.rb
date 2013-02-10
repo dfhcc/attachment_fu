@@ -1,7 +1,10 @@
+require 'technoweenie/attachment_fu/backends'
+require 'technoweenie/attachment_fu/processors'
+
 module Technoweenie # :nodoc:
   module AttachmentFu # :nodoc:
-    @@default_processors = %w(ImageScience Rmagick MiniMagick Gd2 CoreImage)
-    @@tempfile_path      = File.join(RAILS_ROOT, 'tmp', 'attachment_fu')
+    @@default_processors = %w(image_science rmagick mini_magick gd2 core_image)
+    @@tempfile_path      = File.join(Rails.root.to_s, 'tmp', 'attachment_fu')
     @@content_types      = [
       'image/jpeg',
       'image/pjpeg',
@@ -128,6 +131,8 @@ module Technoweenie # :nodoc:
           begin
             if processors.any?
               attachment_options[:processor] = processors.first
+              require "#{attachment_options[:processor].to_s.underscore}_processor" rescue
+              require("technoweenie/attachment_fu/processors/#{attachment_options[:processor].to_s.underscore}_processor") rescue
               processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
               include processor_mod unless included_modules.include?(processor_mod)
             end
@@ -139,6 +144,7 @@ module Technoweenie # :nodoc:
           end
         else
           begin
+            require "#{attachment_options[:processor].to_s.underscore}_processor"
             processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
             include processor_mod unless included_modules.include?(processor_mod)
           rescue Object, Exception
@@ -177,14 +183,15 @@ module Technoweenie # :nodoc:
       end
 
       def self.extended(base)
-        base.class_inheritable_accessor :attachment_options
+        base.class_attribute :attachment_options
         base.before_destroy :destroy_thumbnails
         base.before_validation :set_size_from_temp_path
         base.after_save :after_process_attachment
         base.after_destroy :destroy_file
         base.after_validation :process_attachment
         if defined?(::ActiveSupport::Callbacks)
-          base.define_callbacks :after_resize, :after_attachment_saved, :before_thumbnail_saved
+          base.define_callbacks :resize, :kind => :after
+          base.define_callbacks :thumbnail_saved, :kind => :before
         end
       end
 
@@ -199,19 +206,6 @@ module Technoweenie # :nodoc:
         #   end
         def after_resize(&block)
           write_inheritable_array(:after_resize, [block])
-        end
-
-        # Callback after an attachment has been saved either to the file system or the DB.
-        # Only called if the file has been changed, not necessarily if the record is updated.
-        #
-        #   class Foo < ActiveRecord::Base
-        #     acts_as_attachment
-        #     after_attachment_saved do |record|
-        #       ...
-        #     end
-        #   end
-        def after_attachment_saved(&block)
-          write_inheritable_array(:after_attachment_saved, [block])
         end
 
         # Callback before a thumbnail is saved.  Use this to pass any necessary extra attributes that may be required.
@@ -237,7 +231,7 @@ module Technoweenie # :nodoc:
 
       # Copies the given file path to a new tempfile, returning the closed tempfile.
       def copy_to_temp_file(file, temp_base_name)
-        returning Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path) do |tmp|
+        Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
           tmp.close
           FileUtils.cp file, tmp.path
         end
@@ -245,7 +239,7 @@ module Technoweenie # :nodoc:
 
       # Writes the given data to a new tempfile, returning the closed tempfile.
       def write_to_temp_file(data, temp_base_name)
-        returning Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path) do |tmp|
+        Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
           tmp.binmode
           tmp.write data
           tmp.close
@@ -255,7 +249,12 @@ module Technoweenie # :nodoc:
 
     module InstanceMethods
       def self.included(base)
-        base.define_callbacks *[:after_resize, :after_attachment_saved, :before_thumbnail_saved] if base.respond_to?(:define_callbacks)
+        if base.respond_to?(:define_callbacks)
+          base.class_eval do
+            define_callbacks :resize, :attachment_saved, :kind => :after
+            define_callbacks :thumbnail_saved, :kind => :before
+          end
+        end
       end
 
       # Checks whether the attachment's content type is an image content type
@@ -288,7 +287,7 @@ module Technoweenie # :nodoc:
       # Creates or updates the thumbnail for the current attachment.
       def create_or_update_thumbnail(temp_file, file_name_suffix, *size)
         thumbnailable? || raise(ThumbnailError.new("Can't create a thumbnail if the content type is not an image or there is no parent_id column"))
-        returning find_or_initialize_thumbnail(file_name_suffix) do |thumb|
+        find_or_initialize_thumbnail(file_name_suffix).tap do |thumb|
           thumb.temp_paths.unshift temp_file
           thumb.send(:'attributes=', {
             :content_type             => content_type,
@@ -409,7 +408,7 @@ module Technoweenie # :nodoc:
 
         def sanitize_filename(filename)
           return unless filename
-          returning filename.strip do |name|
+          filename.strip.tap do |name|
             # NOTE: File.basename doesn't work right with Windows paths on Unix
             # get only the filename, not the whole path
             name.gsub! /^.*(\\|\/)/, ''
@@ -451,29 +450,49 @@ module Technoweenie # :nodoc:
         # Cleans up after processing.  Thumbnails are created, the attachment is stored to the backend, and the temp_paths are cleared.
         def after_process_attachment
           if @saved_attachment
-            if respond_to?(:process_attachment_with_processing) && thumbnailable? && !attachment_options[:thumbnails].blank? && parent_id.nil?
+            if respond_to?(:process_attachment_with_processing, true) && thumbnailable? && !attachment_options[:thumbnails].blank? && parent_id.nil?
               temp_file = temp_path || create_temp_file
               attachment_options[:thumbnails].each { |suffix, size| create_or_update_thumbnail(temp_file, suffix, *size) }
             end
             save_to_storage
             @temp_paths.clear
             @saved_attachment = nil
-            callback :after_attachment_saved
           end
         end
 
         # Resizes the given processed img object with either the attachment resize options or the thumbnail resize options.
         def resize_image_or_thumbnail!(img)
           if (!respond_to?(:parent_id) || parent_id.nil?) && attachment_options[:resize_to] # parent image
-            resize_image(img, attachment_options[:resize_to])
+            resize_image(img, evaluate_parameter(attachment_options[:resize_to]))
           elsif thumbnail_resize_options # thumbnail
-            resize_image(img, thumbnail_resize_options)
+            resize_image(img, evaluate_parameter(thumbnail_resize_options))
           end
         end
 
+        # Determine what the parameter is and handle it
+        # Options are
+        #   1. String "100x50"
+        #   2. Array  [100,50]
+        #   3. Method to return one of the above
+        def evaluate_parameter(param)
+          return param if param.is_a?(String)
+          return param if param.is_a?(Array) && param.length > 1
+          param = param[0] if param.is_a?(Array)
+          if param.is_a?(Symbol) && self.respond_to?(param)
+            self.send param
+          else
+            param
+          end
+        end
+
+
+        if defined?(Rails) && Rails::VERSION::MAJOR >= 3
+          def callback_with_args(method, arg = self)
+            send(method, arg) if respond_to?(method)
+          end
         # Yanked from ActiveRecord::Callbacks, modified so I can pass args to the callbacks besides self.
         # Only accept blocks, however
-        if ActiveSupport.const_defined?(:Callbacks)
+        elsif ActiveSupport.const_defined?(:Callbacks)
           # Rails 2.1 and beyond!
           def callback_with_args(method, arg = self)
             notify(method)
