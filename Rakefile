@@ -13,7 +13,7 @@ Rake::TestTask.new(:test) do |t|
 end
 
 desc 'Generate documentation for the attachment_fu plugin.'
-Rake::RDocTask.new(:rdoc) do |rdoc|
+Rake::Task.new(:rdoc) do |rdoc|
   rdoc.rdoc_dir = 'rdoc'
   rdoc.title    = 'ActsAsAttachment'
   rdoc.options << '--line-numbers --inline-source'
