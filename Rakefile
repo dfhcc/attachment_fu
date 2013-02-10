@@ -1,6 +1,6 @@
 require 'rake'
 require 'rake/testtask'
-require 'rdoc/task'
+# require 'rdoc/task'
 
 desc 'Default: run unit tests.'
 task :default => :test
@@ -12,11 +12,11 @@ Rake::TestTask.new(:test) do |t|
   t.verbose = true
 end
 
-desc 'Generate documentation for the attachment_fu plugin.'
-Rake::Task.new(:rdoc) do |rdoc|
-  rdoc.rdoc_dir = 'rdoc'
-  rdoc.title    = 'ActsAsAttachment'
-  rdoc.options << '--line-numbers --inline-source'
-  rdoc.rdoc_files.include('README')
-  rdoc.rdoc_files.include('lib/**/*.rb')
-end
+# desc 'Generate documentation for the attachment_fu plugin.'
+# Rake::Task.new(:rdoc) do |rdoc|
+#   rdoc.rdoc_dir = 'rdoc'
+#   rdoc.title    = 'ActsAsAttachment'
+#   rdoc.options << '--line-numbers --inline-source'
+#   rdoc.rdoc_files.include('README')
+#   rdoc.rdoc_files.include('lib/**/*.rb')
+# end
