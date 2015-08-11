@@ -1,4 +1,4 @@
-require 'RMagick' unless defined?(Magick)
+require 'rmagick' unless defined?(Magick)
 module Technoweenie # :nodoc:
   module AttachmentFu # :nodoc:
     module Processors
